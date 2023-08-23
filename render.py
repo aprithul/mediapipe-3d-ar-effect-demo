@@ -54,15 +54,24 @@ def LoadObj(objPath):
 '''
 masks the colorImg by depthM. The result is the colorImg with depth test applied.
 '''
-def maskWithDepth(depthM, colorImg, depthImg):
-    depthImg[depthImg < 0.05 ] = 50
-    depthM[depthM < 0.05 ] = 50
-    mask = np.maximum(depthM - depthImg, 0)
+def maskWithDepth(depthHead, colorObj, depthObj):
+    # set all depth values close to 0 to 50 (we set 50 as the camera zfar distance)
+    # this is because pyrender sets 0 to undefined depths (where there no object to render)
+    # instead we set it to the farthest distance seen by the camera
+    depthObj[depthObj < 0.05 ] = 50
+    depthHead[depthHead < 0.05 ] = 50
+
+    # create mask from the two depth buffers. 
+    # mask will have 0 where head has a higher depth than the objs depth (i.e. obj is behind head)
+    mask = np.maximum(depthHead - depthObj, 0)
+
+    # set 1 to mask where value is greater than 0 (i.e. head is behind obj)
     mask[mask > 0] = 1
     mask = mask.astype('uint8')
     mask = np.expand_dims(mask, axis=-1)
 
-    return colorImg * mask
+    # use the mask
+    return colorObj * mask
 
 
 '''
@@ -73,21 +82,29 @@ def addAndDrawRemoveNode(node, transform, flags):
     global _scene
 
     _scene.add_node(node)
-    _scene.set_pose(node, transform) #np.dot(facePose, _headPose))
+    _scene.set_pose(node, transform) 
     renderedImgs = _renderer.render(_scene, flags)
     _scene.remove_node(node)
     return renderedImgs
 
 '''
-draws the the already loaded obj from objpath on the user head, maintaining depth buffer as created by a canonical head model
+draws the the already loaded obj from objpath on the user head, 
+maintaining depth buffer as created by a canonical head model
 '''
 def DrawArObj(objPath, facePose, transform = np.identity(4)):
-    global _sceneObjNodes
-    
+    # retrieve the head model's node
     headNode = _sceneObjNodes[_headPath]
-    depthMask = addAndDrawRemoveNode(headNode, np.dot(facePose, _headPose), RenderFlags.RenderFlags.DEPTH_ONLY | RenderFlags.RenderFlags.OFFSCREEN)
+    # add the head to the scene, draw it to a depth buffer, and remove it
+    depthBuffer = addAndDrawRemoveNode(headNode, np.dot(facePose, _headPose), RenderFlags.RenderFlags.DEPTH_ONLY | RenderFlags.RenderFlags.OFFSCREEN)
     
+    # we can now use this depth buffer for drawing the obj
+    # if part of the obj is occluded by the head, we will skip drawing that part
+
+    # retrieve the obj's node
     objNode = _sceneObjNodes[objPath]
+    # add the obj to the to the scene, draw it to both color and depth buffer, and remove it
     colorObj, depthObj = addAndDrawRemoveNode(objNode, np.dot(facePose, transform), RenderFlags.RenderFlags.ALL_SOLID | RenderFlags.RenderFlags.OFFSCREEN)
-    depthCorrectedImage = maskWithDepth(depthMask, colorObj, depthObj)
+    
+    # now mask parts of the obj's color buffer using the head's depth buffer and obj's depth buffer
+    depthCorrectedImage = maskWithDepth(depthBuffer, colorObj, depthObj)
     return depthCorrectedImage
