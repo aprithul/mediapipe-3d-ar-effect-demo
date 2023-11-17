@@ -117,7 +117,6 @@ def isPinching():
     
     dist = gfxmath.VecDist(indexPos, thumbPos)
     pos = [(px + qx)/ 2.0 for px, qx in zip(indexPos, thumbPos)]
-    print(current_milli_time(), state,dist)
     if  dist < MinPinchDist:
         return True, pos
     return False, pos
@@ -213,14 +212,14 @@ def doAr():
                     state = State.IN_HAND
 
 
-            #render.Draw(sunglassEnt)
+            render.Draw(sunglassEnt)
 
             # we'll show the captured image 
             outImage = composite(image, render.colorBuffer, [0,0,0])
 
             # and show
             outImage = cv2.resize(outImage, (1024, 576))
-            cv2.imshow('Input', render.depthBuffer/255)
+            cv2.imshow('Input', outImage)
             render.Clear()
 
             # did someone press escape?
