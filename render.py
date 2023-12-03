@@ -6,7 +6,6 @@ import numpy as np
 from Entities import Entity
 
 _sceneObjNodes = {}
-_headPath = './objs/head/head.obj'
 _scene = None
 _camera = None
 _headPose = None

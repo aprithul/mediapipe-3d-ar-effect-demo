@@ -59,7 +59,6 @@ def GetPsudoCamera(frame_width, frame_height):
     distortion = np.zeros((4, 1))
     return camera_matrix, distortion
 
-
 def VecDist(vecA, vecB):
     return math.sqrt(sum((px - qx) ** 2.0 for px, qx in zip(vecA, vecB)))
 
@@ -70,9 +69,9 @@ def GetWorldPoints(model_points, image_points, camera_matrix, distortion):
     transformation[0:3, 3] = translation_vector.squeeze()
     # the transformation consists only of the translation, because the rotation is accounted for in the model coordinates. Take a look at this (https://codepen.io/mediapipe/pen/RwGWYJw to see how the model coordinates behave - the hand rotates, but doesn't translate
     # transform model coordinates into homogeneous coordinates
+        
     model_points_hom = np.concatenate((model_points, np.ones((21, 1))), axis=1)
     # apply the transformation
-    mat = np.linalg.inv(transformation).T
-    world_points = model_points_hom.dot(mat)
+    world_points = model_points_hom.dot(np.linalg.inv(transformation).T)
     
     return world_points

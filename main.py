@@ -12,12 +12,12 @@ from Entities import Entity
 from enum import Enum
 
 class State(Enum):
-    ON_HEAD = 0
+    ON_FACE = 0
     IN_HAND = 1
     FREE = 2
 
 
-MinPinchDist = 6
+MinPinchDist = 4
 MinSnapDist = 10
 
 facePose = None
@@ -54,7 +54,7 @@ def GetHandLandMarkResult(result:vision.HandLandmarkerResult, output_image: mp.I
     global thumbPos
     global hasHand
 
-    if len(result.handedness) > 0 and result.handedness[0][0].category_name == "Right":
+    if len(result.handedness) > 0: # and result.handedness[0][0].category_name == "Right":
         world_landmarks = result.hand_world_landmarks[0]
         hand_landmarks = result.hand_landmarks[0]
         
@@ -75,6 +75,8 @@ def GetHandLandMarkResult(result:vision.HandLandmarkerResult, output_image: mp.I
         thumbPos[1] *= 100
         thumbPos[2] *= 50
         hasHand = True
+    #else:
+    #    print("no hand", len(result.handedness), )
         #print(world_points[8])
 
         #print(len(result.handedness), ' ', len(result.hand_landmarks[0]))
@@ -98,6 +100,9 @@ def GetHandLandmarker():
     base_options = tasks.BaseOptions(model_asset_path=hand_model_path)
     options = vision.HandLandmarkerOptions(base_options=base_options,
                                         running_mode=vision.RunningMode.LIVE_STREAM,
+                                        min_hand_detection_confidence = 0.2,
+                                        min_hand_presence_confidence = 0.2,
+                                        min_tracking_confidence = 0.2,
                                         result_callback=GetHandLandMarkResult)
     return vision.HandLandmarker.create_from_options(options)
 
@@ -112,16 +117,17 @@ def composite(image, overlay, ignore_color=[0,0,0]):
     
 def isPinching():
     if hasHand is False:
-        print("Error")
+        #print("Error")
         return False, None
     
     dist = gfxmath.VecDist(indexPos, thumbPos)
+    #print(current_milli_time(), dist)
     pos = [(px + qx)/ 2.0 for px, qx in zip(indexPos, thumbPos)]
     if  dist < MinPinchDist:
         return True, pos
     return False, pos
 
-def doAr():
+def doMr():
 
     global matPsudoCam
     global distortionPsudoCam
@@ -197,12 +203,12 @@ def doAr():
                         headPos = (facePose[0,3], facePose[1,3], facePose[2,3])
                         distToHead = gfxmath.VecDist(sunglassEnt.GetPos(), headPos)
                         if  distToHead <= MinSnapDist:
-                            state = State.ON_HEAD
+                            state = State.ON_FACE
                         else:
                             state = State.FREE
                     else:
                         state = State.FREE
-            elif state is State.ON_HEAD:
+            elif state is State.ON_FACE:
                 headEnt.SetTransform(np.dot(facePose, headOffset))
                 render.DrawDepth(headEnt)
                 
@@ -218,7 +224,7 @@ def doAr():
             outImage = composite(image, render.colorBuffer, [0,0,0])
 
             # and show
-            outImage = cv2.resize(outImage, (1024, 576))
+            #outImage = cv2.resize(outImage, (1024, 576))
             cv2.imshow('Input', outImage)
             render.Clear()
 
@@ -235,6 +241,6 @@ def doAr():
 
 
 if __name__ == "__main__":
-    doAr()
+    doMr()
 
 
